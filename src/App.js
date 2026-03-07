@@ -26,16 +26,15 @@ const UploadPage = memo(({ onUploadSuccess }) => {
     try {
       const fileName = `${Date.now()}-${file.name}`;
       
-      // 🔴 СТРОКА 37 - ИСПРАВЛЕНО: добавлено 'data:' перед uploadData
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // ✅ ИСПРАВЛЕНО: добавлено '' перед uploadData
+      const {  uploadData, error: uploadError } = await supabase.storage
         .from('videos')
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
-
       setUploadProgress(50);
 
-      // 🔴 СТРОКА 47 - ИСПРАВЛЕНО: добавлено 'data:' перед { publicUrl }
+      // ✅ ИСПРАВЛЕНО: добавлено '' перед { publicUrl }
       const { data: { publicUrl } } = supabase.storage
         .from('videos')
         .getPublicUrl(fileName);
@@ -47,7 +46,6 @@ const UploadPage = memo(({ onUploadSuccess }) => {
         .insert([{ video_url: publicUrl, description, likes: 0 }]);
 
       if (dbError) throw dbError;
-
       setUploadProgress(100);
       alert("🎉 Видео загружено!");
       onUploadSuccess();
@@ -130,7 +128,6 @@ function App() {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
-      
       if (error) throw error;
       setVideos(data || []);
     } catch (error) {
@@ -151,7 +148,6 @@ function App() {
   const handleScroll = useCallback((e) => {
     const index = Math.round(e.target.scrollTop / window.innerHeight);
     setActiveVideoIndex(index);
-    
     if (index > visibleVideos - 2 && visibleVideos < videos.length) {
       setVisibleVideos(prev => Math.min(prev + 3, videos.length));
     }

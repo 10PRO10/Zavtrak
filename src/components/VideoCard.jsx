@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '../supabaseClient';
 import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Zap } from 'lucide-react';
 
 const VideoCard = ({ video, isActive }) => {
@@ -19,31 +20,22 @@ const VideoCard = ({ video, isActive }) => {
       videoRef.current.currentTime = 0;
       setIsPlaying(false);
     }
-
     const likedVideos = JSON.parse(localStorage.getItem('likedVideos') || '[]');
-    if (likedVideos.includes(video.id)) {
-      setHasLiked(true);
-    }
+    if (likedVideos.includes(video.id)) setHasLiked(true);
   }, [isActive, video.id]);
 
   const handleLike = async () => {
     if (hasLiked) return;
     setShowHeart(true);
     setTimeout(() => setShowHeart(false), 1000);
-    
     const newLikeCount = likeCount + 1;
     setLikeCount(newLikeCount);
     setHasLiked(true);
-    
     const likedVideos = JSON.parse(localStorage.getItem('likedVideos') || '[]');
     likedVideos.push(video.id);
     localStorage.setItem('likedVideos', JSON.stringify(likedVideos));
     
-    const { error } = await supabase
-      .from('videos')
-      .update({ likes: newLikeCount })
-      .eq('id', video.id);
-    
+    const { error } = await supabase.from('videos').update({ likes: newLikeCount }).eq('id', video.id);
     if (error) {
       console.error("Ошибка лайка:", error);
       setLikeCount(likeCount);
@@ -73,9 +65,7 @@ const VideoCard = ({ video, isActive }) => {
       <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/20 via-purple-900/10 to-pink-900/20" />
 
       <div className="relative w-full max-w-md h-[75vh] rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,255,255,0.3)] border border-cyan-500/30">
-        {!isVideoLoaded && (
-          <div className="absolute inset-0 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-pulse" />
-        )}
+        {!isVideoLoaded && <div className="absolute inset-0 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-pulse" />}
         
         <video
           ref={videoRef}
@@ -137,12 +127,10 @@ const VideoCard = ({ video, isActive }) => {
           </div>
           <span className="text-cyan-400 text-xs mt-1 block text-center font-bold drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">{likeCount}</span>
         </button>
-
         <button className="group relative p-4 rounded-xl bg-black/80 backdrop-blur-md hover:bg-black/90 transition-all duration-300 transform hover:scale-110 border border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.3)] active:scale-95">
           <MessageCircle className="w-8 h-8 text-purple-400 group-hover:text-purple-300 group-hover:drop-shadow-[0_0_15px_rgba(168,85,247,0.8)] transition-all" />
           <span className="text-purple-400 text-xs mt-1 block text-center font-bold drop-shadow-[0_0_5px_rgba(168,85,247,0.8)]">0</span>
         </button>
-
         <button className="group relative p-4 rounded-xl bg-black/80 backdrop-blur-md hover:bg-black/90 transition-all duration-300 transform hover:scale-110 border border-pink-500/50 shadow-[0_0_20px_rgba(255,0,128,0.3)] active:scale-95">
           <Share2 className="w-8 h-8 text-pink-400 group-hover:text-pink-300 group-hover:drop-shadow-[0_0_15px_rgba(255,0,128,0.8)] transition-all" />
           <span className="text-pink-400 text-xs mt-1 block text-center font-bold drop-shadow-[0_0_5px_rgba(255,0,128,0.8)]">Share</span>

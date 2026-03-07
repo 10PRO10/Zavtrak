@@ -64,7 +64,7 @@ const VideoCard = ({ video, isActive }) => {
       <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
       <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/20 via-purple-900/10 to-pink-900/20" />
 
-      <div className="relative w-full max-w-md h-[75vh] rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,255,255,0.3)] border border-cyan-500/30">
+      <div className="relative w-full max-w-md h-[70vh] rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,255,255,0.3)] border border-cyan-500/30">
         {!isVideoLoaded && <div className="absolute inset-0 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-pulse" />}
         
         <video
@@ -119,7 +119,8 @@ const VideoCard = ({ video, isActive }) => {
         </button>
       </div>
 
-      <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-6">
+      {/* 🔴 ИСПРАВЛЕНО: Кнопки подняты выше (bottom-20 вместо bottom-10) */}
+      <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-6">
         <button onClick={handleLike} className={`group relative p-4 rounded-xl transition-all duration-300 transform ${hasLiked ? 'bg-gradient-to-r from-pink-600 to-purple-600 scale-110 shadow-[0_0_30px_rgba(255,0,128,0.6)] border border-pink-400' : 'bg-black/80 backdrop-blur-md hover:bg-black/90 hover:scale-110 border border-cyan-500/50 shadow-[0_0_20px_rgba(0,255,255,0.3)]' } active:scale-95`} type="button" disabled={hasLiked}>
           <div className="relative">
             <Heart className={`w-8 h-8 transition-all duration-300 ${hasLiked ? 'text-pink-400 fill-pink-400 drop-shadow-[0_0_15px_rgba(255,0,128,0.8)]' : 'text-cyan-400 group-hover:text-pink-400'}`} />
@@ -127,10 +128,12 @@ const VideoCard = ({ video, isActive }) => {
           </div>
           <span className="text-cyan-400 text-xs mt-1 block text-center font-bold drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">{likeCount}</span>
         </button>
+
         <button className="group relative p-4 rounded-xl bg-black/80 backdrop-blur-md hover:bg-black/90 transition-all duration-300 transform hover:scale-110 border border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.3)] active:scale-95">
           <MessageCircle className="w-8 h-8 text-purple-400 group-hover:text-purple-300 group-hover:drop-shadow-[0_0_15px_rgba(168,85,247,0.8)] transition-all" />
           <span className="text-purple-400 text-xs mt-1 block text-center font-bold drop-shadow-[0_0_5px_rgba(168,85,247,0.8)]">0</span>
         </button>
+
         <button className="group relative p-4 rounded-xl bg-black/80 backdrop-blur-md hover:bg-black/90 transition-all duration-300 transform hover:scale-110 border border-pink-500/50 shadow-[0_0_20px_rgba(255,0,128,0.3)] active:scale-95">
           <Share2 className="w-8 h-8 text-pink-400 group-hover:text-pink-300 group-hover:drop-shadow-[0_0_15px_rgba(255,0,128,0.8)] transition-all" />
           <span className="text-pink-400 text-xs mt-1 block text-center font-bold drop-shadow-[0_0_5px_rgba(255,0,128,0.8)]">Share</span>

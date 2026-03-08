@@ -1,6 +1,6 @@
 {
   "name": "zavtrak",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -8,13 +8,26 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "web-vitals": "^3.5.0"
+    "web-vitals": "^3.5.0",
+    "workbox-core": "^7.0.0",
+    "workbox-background-sync": "^7.0.0",
+    "workbox-broadcast-update": "^7.0.0",
+    "workbox-cacheable-response": "^7.0.0",
+    "workbox-expiration": "^7.0.0",
+    "workbox-google-analytics": "^7.0.0",
+    "workbox-navigation-preload": "^7.0.0",
+    "workbox-precaching": "^7.0.0",
+    "workbox-range-requests": "^7.0.0",
+    "workbox-routing": "^7.0.0",
+    "workbox-strategies": "^7.0.0",
+    "workbox-streams": "^7.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "test": "react-scripts test --watchAll=false",
+    "eject": "react-scripts eject",
+    "analyze": "source-map-explorer 'build/static/js/*.js'"
   },
   "browserslist": {
     "production": [">0.2%", "not dead", "not op_mini all"],

@@ -25,19 +25,14 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
     setUploadProgress(0);
 
     try {
-      console.log('📤 НАЧАЛО ЗАГРУЗКИ:', { fileName: file.name, fileSize: file.size, userId: user.id, userEmail: user.email });
+      console.log('📤 НАЧАЛО ЗАГРУЗКИ:', { fileName: file.name, userId: user.id });
       
       const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      console.log('📁 Имя файла в Storage:', fileName);
       
       // 1. Загружаем файл в Storage
-      console.log('⬆️ Загрузка файла в Storage...');
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('videos')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
       if (uploadError) {
         console.error('❌ ОШИБКА ЗАГРУЗКИ ФАЙЛА:', uploadError);
@@ -48,7 +43,6 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
       setUploadProgress(50);
 
       // 2. Получаем публичную ссылку
-      console.log('🔗 Получение публичной ссылки...');
       const { data: { publicUrl } } = supabase.storage
         .from('videos')
         .getPublicUrl(fileName);
@@ -57,7 +51,6 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
       setUploadProgress(75);
 
       // 3. Сохраняем в базу данных
-      console.log('💾 Сохранение в базу данных...');
       const { data: dbData, error: dbError } = await supabase
         .from('videos')
         .insert([{ 
@@ -67,7 +60,7 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
           user_id: user.id,
           created_by_email: user.email
         }])
-        .select(); // ← ВАЖНО: возвращаем созданную запись
+        .select();
 
       if (dbError) {
         console.error('❌ ОШИБКА БАЗЫ ДАННЫХ:', dbError);
@@ -80,7 +73,6 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
       onUploadSuccess();
     } catch (error) {
       console.error("❌ ПОЛНАЯ ОШИБКА ЗАГРУЗКИ:", error);
-      console.error("Stack trace:", error.stack);
       alert("Ошибка: " + (error.message || "Не удалось загрузить видео"));
     } finally {
       setLoading(false);
@@ -161,7 +153,6 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authView, setAuthView] = useState(null);
 
-  // Проверка сессии при загрузке
   useEffect(() => {
     const checkSession = async () => {
       console.log('🔍 Проверка сессии...');
@@ -170,22 +161,8 @@ function App() {
       if (session?.user) {
         console.log('✅ Пользователь авторизован:', session.user.email);
         setUser(session.user);
-        
-        // Проверка админа
         if (session.user.email === 'promir12345678910@gmail.com') {
           console.log('👑 АДМИН обнаружен!');
-          setIsAdmin(true);
-        }
-        
-        // Загружаем профиль для доп. данных
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profile?.is_admin) {
-          console.log('👑 АДМИН подтверждён через профиль!');
           setIsAdmin(true);
         }
       } else {
@@ -196,7 +173,6 @@ function App() {
     
     checkSession();
 
-    // Слушатель изменений авторизации
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('🔄 Изменение авторизации:', event);
       if (session?.user) {
@@ -211,28 +187,45 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // 🔴 ИСПРАВЛЕННАЯ ФУНКЦИЯ fetchVideos
   const fetchVideos = useCallback(async () => {
     console.log('📥 ЗАГРУЗКА ВИДЕО...');
     setIsLoading(true);
     try {
+      // 🔴 ИСПРАВЛЕНО: безопасный запрос с явным указанием foreign key
       const { data, error } = await supabase
         .from('videos')
-        .select('*, profiles(username, avatar_url)')
+        .select(`
+          *,
+          profiles:user_id (
+            username,
+            avatar_url
+          )
+        `)
         .order('created_at', { ascending: false })
         .limit(10);
       
       if (error) {
         console.error('❌ ОШИБКА ЗАГРУЗКИ ВИДЕО:', error);
+        // 🔴 Если ошибка 406 — пробуем без join с profiles
+        if (error.code === '406' || error.message?.includes('406')) {
+          console.log('🔄 Пробуем загрузить видео без профиля...');
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('videos')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(10);
+          
+          if (fallbackError) throw fallbackError;
+          console.log('✅ ВИДЕО ЗАГРУЖЕНО (без профиля):', fallbackData);
+          setVideos(fallbackData || []);
+          return;
+        }
         throw error;
       }
       
       console.log('✅ ВИДЕО ЗАГРУЖЕНО:', data);
       console.log('📊 КОЛИЧЕСТВО ВИДЕО:', data?.length);
-      
-      if (data && data.length > 0) {
-        console.log('🎬 Первое видео:', data[0]);
-      }
-      
       setVideos(data || []);
     } catch (error) {
       console.error("Ошибка загрузки видео:", error);
@@ -249,7 +242,6 @@ function App() {
   const handleScroll = useCallback((e) => {
     const index = Math.round(e.target.scrollTop / window.innerHeight);
     setActiveVideoIndex(index);
-    
     if (index > visibleVideos - 2 && visibleVideos < videos.length) {
       setVisibleVideos(prev => Math.min(prev + 3, videos.length));
     }
@@ -268,10 +260,7 @@ function App() {
     setIsAdmin(false); 
   };
 
-  // Если показываем авторизацию
-  if (authView) {
-    return <Auth onAuthSuccess={handleAuthSuccess} />;
-  }
+  if (authView) return <Auth onAuthSuccess={handleAuthSuccess} />;
 
   return (
     <div className="h-screen w-full overflow-hidden bg-black relative safe-top safe-bottom">
@@ -321,16 +310,13 @@ function App() {
 
       {view === 'upload' ? (
         user ? (
-          <UploadPage onUploadSuccess={() => { console.log('✅ Загрузка завершена, обновляем ленту'); fetchVideos(); setView('feed'); }} user={user} isAdmin={isAdmin} />
+          <UploadPage onUploadSuccess={() => { console.log('✅ Загрузка завершена'); fetchVideos(); setView('feed'); }} user={user} isAdmin={isAdmin} />
         ) : (
           <div className="h-screen flex flex-col items-center justify-center text-cyan-400 px-4">
             <Shield className="w-20 h-20 mb-4 text-pink-400" />
             <p className="text-xl font-bold text-white mb-2">Требуется вход</p>
             <p className="text-sm text-purple-400 mb-4 text-center">Войдите, чтобы загружать видео</p>
-            <button 
-              onClick={() => setAuthView('login')}
-              className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-cyan-600 hover:to-purple-600 transition-all"
-            >
+            <button onClick={() => setAuthView('login')} className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-cyan-600 hover:to-purple-600 transition-all">
               Войти в аккаунт
             </button>
           </div>
@@ -343,9 +329,7 @@ function App() {
                 <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
               </div>
               <p className="text-xl sm:text-2xl font-bold text-white mb-2 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)] text-center">НЕТ ВИДЕО</p>
-              <p className="text-sm text-purple-400 text-center">
-                {user ? 'Будь первым кто загрузит в Zavtrak!' : 'Войдите, чтобы начать'}
-              </p>
+              <p className="text-sm text-purple-400 text-center">{user ? 'Будь первым кто загрузит в Zavtrak!' : 'Войдите, чтобы начать'}</p>
             </div>
           )}
           {videos.slice(0, visibleVideos).map((video, index) => (
@@ -364,7 +348,7 @@ function App() {
         </button>
       )}
 
-      {/* Нижняя навигация - ИСПРАВЛЕНО */}
+      {/* Нижняя навигация */}
       {view === 'feed' && (
         <div className="fixed bottom-0 left-0 w-full z-[100] flex justify-around items-center p-2 sm:p-3 bg-gradient-to-t from-black/95 via-black/90 to-transparent backdrop-blur-md border-t border-cyan-500/30 safe-bottom" 
              style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>

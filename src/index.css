@@ -77,5 +77,4 @@ html { scroll-behavior: smooth; }
 }
 
 * { touch-action: manipulation; }
-
 .fixed { contain: none; }

@@ -25,7 +25,7 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
     setUploadProgress(0);
 
     try {
-      console.log('📤 НАЧАЛО ЗАГРУЗКИ:', { fileName: file.name, userId: user.id });
+      console.log('📤 НАЧАЛО ЗАГРУЗКИ:', { fileName: file.name, userId: user?.id });
       
       const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
@@ -50,16 +50,22 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
       console.log('✅ ПУБЛИЧНАЯ ССЫЛКА:', publicUrl);
       setUploadProgress(75);
 
-      // 3. Сохраняем в базу данных
+      // 3. Сохраняем в базу данных (без user_id если его нет)
+      const videoData = { 
+        video_url: publicUrl, 
+        description: description || '',
+        likes: 0,
+        created_by_email: user?.email || null
+      };
+      
+      // Добавляем user_id только если он есть и валиден
+      if (user?.id) {
+        videoData.user_id = user.id;
+      }
+
       const { data: dbData, error: dbError } = await supabase
         .from('videos')
-        .insert([{ 
-          video_url: publicUrl, 
-          description: description || '',
-          likes: 0,
-          user_id: user.id,
-          created_by_email: user.email
-        }])
+        .insert([videoData])
         .select();
 
       if (dbError) {
@@ -187,40 +193,20 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 🔴 ИСПРАВЛЕННАЯ ФУНКЦИЯ fetchVideos
+  // 🔴 УПРОЩЁННАЯ ФУНКЦИЯ ЗАГРУЗКИ ВИДЕО (без join)
   const fetchVideos = useCallback(async () => {
     console.log('📥 ЗАГРУЗКА ВИДЕО...');
     setIsLoading(true);
     try {
-      // 🔴 ИСПРАВЛЕНО: безопасный запрос с явным указанием foreign key
+      // Простой запрос БЕЗ join с profiles (избегаем ошибок внешнего ключа)
       const { data, error } = await supabase
         .from('videos')
-        .select(`
-          *,
-          profiles:user_id (
-            username,
-            avatar_url
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
       
       if (error) {
         console.error('❌ ОШИБКА ЗАГРУЗКИ ВИДЕО:', error);
-        // 🔴 Если ошибка 406 — пробуем без join с profiles
-        if (error.code === '406' || error.message?.includes('406')) {
-          console.log('🔄 Пробуем загрузить видео без профиля...');
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('videos')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(10);
-          
-          if (fallbackError) throw fallbackError;
-          console.log('✅ ВИДЕО ЗАГРУЖЕНО (без профиля):', fallbackData);
-          setVideos(fallbackData || []);
-          return;
-        }
         throw error;
       }
       
@@ -229,6 +215,7 @@ function App() {
       setVideos(data || []);
     } catch (error) {
       console.error("Ошибка загрузки видео:", error);
+      setVideos([]);
     } finally {
       setIsLoading(false);
     }

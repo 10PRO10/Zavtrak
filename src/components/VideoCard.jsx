@@ -82,17 +82,7 @@ const VideoCard = ({ video, isActive, user, isAdmin }) => {
       <div className="relative w-full max-w-md h-[70vh] sm:h-[75vh] rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,255,255,0.3)] border border-cyan-500/30 mx-4 sm:mx-0">
         {!isVideoLoaded && <div className="absolute inset-0 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-pulse" />}
         
-        <video
-          ref={videoRef}
-          src={video.video_url}
-          className="h-full w-full object-cover"
-          loop
-          playsInline
-          muted={isMuted}
-          onClick={togglePlay}
-          onLoadedData={() => setIsVideoLoaded(true)}
-          preload="metadata"
-        />
+        <video ref={videoRef} src={video.video_url} className="h-full w-full object-cover" loop playsInline muted={isMuted} onClick={togglePlay} onLoadedData={() => setIsVideoLoaded(true)} preload="metadata" />
 
         <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.3)_50%)] bg-[size:100%_4px] pointer-events-none opacity-20" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 pointer-events-none" />

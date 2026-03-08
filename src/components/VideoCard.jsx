@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Zap } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Zap, Trash2 } from 'lucide-react';
 
-const VideoCard = ({ video, isActive }) => {
+const VideoCard = ({ video, isActive, user, isAdmin }) => {
   const videoRef = useRef(null);
   const [likeCount, setLikeCount] = useState(video.likes || 0);
   const [hasLiked, setHasLiked] = useState(false);
@@ -25,7 +25,7 @@ const VideoCard = ({ video, isActive }) => {
   }, [isActive, video.id]);
 
   const handleLike = async () => {
-    if (hasLiked) return;
+    if (hasLiked || !user) return;
     setShowHeart(true);
     setTimeout(() => setShowHeart(false), 1000);
     const newLikeCount = likeCount + 1;
@@ -56,6 +56,21 @@ const VideoCard = ({ video, isActive }) => {
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Удалить это видео?')) return;
+    try {
+      const videoPath = video.video_url.split('/').pop();
+      await supabase.storage.from('videos').remove([videoPath]);
+      const { error } = await supabase.from('videos').delete().eq('id', video.id);
+      if (error) throw error;
+      alert('✅ Видео удалено');
+      window.location.reload();
+    } catch (err) {
+      console.error('Ошибка удаления:', err);
+      alert('❌ Не удалось удалить видео');
     }
   };
 
@@ -104,7 +119,7 @@ const VideoCard = ({ video, isActive }) => {
               <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-cyan-400 text-sm sm:text-base drop-shadow-[0_0_10px_rgba(0,255,255,0.8)]">@user_{video.id}</h3>
+              <h3 className="font-bold text-cyan-400 text-sm sm:text-base drop-shadow-[0_0_10px_rgba(0,255,255,0.8)]">@{video.profiles?.username || `user_${video.id?.slice(0,6)}`}</h3>
               <p className="text-purple-400 text-xs">Zavtrak Creator</p>
             </div>
           </div>
@@ -120,7 +135,7 @@ const VideoCard = ({ video, isActive }) => {
       </div>
 
       <div className="absolute bottom-16 sm:bottom-20 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-3 sm:gap-6 px-4">
-        <button onClick={handleLike} className={`group relative p-3 sm:p-4 rounded-xl transition-all duration-300 transform touch-button ${hasLiked ? 'bg-gradient-to-r from-pink-600 to-purple-600 scale-110 shadow-[0_0_30px_rgba(255,0,128,0.6)] border border-pink-400' : 'bg-black/80 backdrop-blur-md hover:bg-black/90 hover:scale-110 border border-cyan-500/50 shadow-[0_0_20px_rgba(0,255,255,0.3)]' } active:scale-95`} type="button" disabled={hasLiked}>
+        <button onClick={handleLike} className={`group relative p-3 sm:p-4 rounded-xl transition-all duration-300 transform touch-button ${hasLiked ? 'bg-gradient-to-r from-pink-600 to-purple-600 scale-110 shadow-[0_0_30px_rgba(255,0,128,0.6)] border border-pink-400' : 'bg-black/80 backdrop-blur-md hover:bg-black/90 hover:scale-110 border border-cyan-500/50 shadow-[0_0_20px_rgba(0,255,255,0.3)]' } active:scale-95`} type="button" disabled={hasLiked || !user}>
           <div className="relative">
             <Heart className={`w-6 h-6 sm:w-8 sm:h-8 transition-all duration-300 ${hasLiked ? 'text-pink-400 fill-pink-400 drop-shadow-[0_0_15px_rgba(255,0,128,0.8)]' : 'text-cyan-400 group-hover:text-pink-400'}`} />
             {hasLiked && (<div className="absolute inset-0 animate-ping"><Heart className="w-6 h-6 sm:w-8 sm:h-8 text-pink-400 fill-pink-400 opacity-50" /></div>)}
@@ -135,6 +150,12 @@ const VideoCard = ({ video, isActive }) => {
           <Share2 className="w-6 h-6 sm:w-8 sm:h-8 text-pink-400 group-hover:text-pink-300 group-hover:drop-shadow-[0_0_15px_rgba(255,0,128,0.8)] transition-all" />
           <span className="text-pink-400 text-xs mt-1 block text-center font-bold drop-shadow-[0_0_5px_rgba(255,0,128,0.8)]">Share</span>
         </button>
+        {(isAdmin || user?.id === video.user_id) && (
+          <button onClick={handleDelete} className="group relative p-3 sm:p-4 rounded-xl bg-black/80 backdrop-blur-md hover:bg-red-500/20 transition-all duration-300 transform hover:scale-110 border border-red-500/50 shadow-[0_0_20px_rgba(255,0,0,0.3)] active:scale-95 touch-button" title="Удалить видео">
+            <Trash2 className="w-6 h-6 sm:w-8 sm:h-8 text-red-400 group-hover:text-red-300 group-hover:drop-shadow-[0_0_15px_rgba(255,0,0,0.8)] transition-all" />
+            <span className="text-red-400 text-xs mt-1 block text-center font-bold drop-shadow-[0_0_5px_rgba(255,0,0,0.8)]">Del</span>
+          </button>
+        )}
       </div>
     </div>
   );

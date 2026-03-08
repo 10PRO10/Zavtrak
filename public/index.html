@@ -34,7 +34,6 @@
       * { -webkit-user-select: none; user-select: none; }
       input, textarea { -webkit-user-select: text; user-select: text; }
       
-      /* Блокировка зума на iOS */
       body {
         position: fixed;
         width: 100%;
@@ -62,13 +61,8 @@
       }
       @keyframes spin { to { transform: rotate(360deg); } }
       
-      /* Безопасные зоны для iPhone с челкой */
-      .safe-top {
-        padding-top: env(safe-area-inset-top, 0px);
-      }
-      .safe-bottom {
-        padding-bottom: env(safe-area-inset-bottom, 0px);
-      }
+      .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+      .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
     </style>
   </head>
   <body>

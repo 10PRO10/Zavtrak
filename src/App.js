@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { supabase } from './supabaseClient';
-import { Upload, Play, Heart, MessageCircle, Share2, Plus, Zap } from 'lucide-react';
+import { Upload, Play, Heart, MessageCircle, Share2, Plus, Zap, LogOut, Shield } from 'lucide-react';
 import VideoCard from './components/VideoCard';
+import Auth from './components/Auth';
 
-const UploadPage = memo(({ onUploadSuccess }) => {
+const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
   const [file, setFile] = useState(null);
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,14 +20,14 @@ const UploadPage = memo(({ onUploadSuccess }) => {
   }, [file]);
 
   const handleUpload = useCallback(async () => {
-    if (!file) return alert("Выберите файл!");
+    if (!file || !user) return alert("Выберите файл и войдите в аккаунт!");
     setLoading(true);
     setUploadProgress(0);
 
     try {
       const fileName = `${Date.now()}-${file.name}`;
       
-      const {  uploadData, error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('videos')
         .upload(fileName, file);
 
@@ -41,7 +42,13 @@ const UploadPage = memo(({ onUploadSuccess }) => {
 
       const { error: dbError } = await supabase
         .from('videos')
-        .insert([{ video_url: publicUrl, description, likes: 0 }]);
+        .insert([{ 
+          video_url: publicUrl, 
+          description, 
+          likes: 0,
+          user_id: user.id,
+          created_by_email: user.email
+        }]);
 
       if (dbError) throw dbError;
       setUploadProgress(100);
@@ -54,7 +61,7 @@ const UploadPage = memo(({ onUploadSuccess }) => {
       setLoading(false);
       setUploadProgress(0);
     }
-  }, [file, description, onUploadSuccess]);
+  }, [file, description, user, onUploadSuccess]);
 
   return (
     <div className="h-screen w-full bg-black text-white p-4 sm:p-6 flex flex-col items-center justify-center relative overflow-hidden safe-top safe-bottom">
@@ -69,7 +76,15 @@ const UploadPage = memo(({ onUploadSuccess }) => {
           <h1 className="text-2xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(0,255,255,0.5)]">
             ЗАГРУЗИТЬ ВИДЕО
           </h1>
-          <p className="text-cyan-400/80 text-sm sm:text-base">Поделись моментом в Zavtrak</p>
+          <p className="text-cyan-400/80 text-sm sm:text-base">
+            {user?.email === 'promir12345678910@gmail.com' && '👑 АДМИН: '}
+            Поделись моментом в Zavtrak
+          </p>
+          {user && (
+            <p className="text-purple-400/60 text-xs mt-2">
+              Аккаунт: {user.email} {isAdmin && <Shield className="inline w-3 h-3 text-pink-400" />}
+            </p>
+          )}
         </div>
 
         {preview && (
@@ -117,13 +132,42 @@ function App() {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [visibleVideos, setVisibleVideos] = useState(3);
+  const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authView, setAuthView] = useState(null);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        if (session.user.email === 'promir12345678910@gmail.com') setIsAdmin(true);
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        if (profile?.is_admin) setIsAdmin(true);
+      }
+      setIsLoading(false);
+    };
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        setIsAdmin(session.user.email === 'promir12345678910@gmail.com');
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const fetchVideos = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('videos')
-        .select('*')
+        .select('*, profiles(username, avatar_url)')
         .order('created_at', { ascending: false })
         .limit(10);
       if (error) throw error;
@@ -135,41 +179,56 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!supabase) {
-      console.error("❌ ОШИБКА: supabase не подключен!");
-      return;
-    }
-    fetchVideos();
-  }, [fetchVideos]);
+  useEffect(() => { fetchVideos(); }, [fetchVideos]);
 
   const handleScroll = useCallback((e) => {
     const index = Math.round(e.target.scrollTop / window.innerHeight);
     setActiveVideoIndex(index);
-    
     if (index > visibleVideos - 2 && visibleVideos < videos.length) {
       setVisibleVideos(prev => Math.min(prev + 3, videos.length));
     }
   }, [visibleVideos, videos.length]);
 
-  const handleUploadSuccess = useCallback(() => {
-    fetchVideos();
-    setView('feed');
-  }, [fetchVideos]);
+  const handleAuthSuccess = useCallback(() => { fetchVideos(); setAuthView(null); }, [fetchVideos]);
+  const handleLogout = async () => { await supabase.auth.signOut(); setUser(null); setIsAdmin(false); };
+
+  if (authView) return <Auth onAuthSuccess={handleAuthSuccess} />;
 
   return (
     <div className="h-screen w-full overflow-hidden bg-black relative safe-top safe-bottom">
-      {/* Верхняя навигация */}
       <div className="absolute top-0 left-0 w-full z-50 flex justify-between items-center p-3 sm:p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm border-b border-cyan-500/20 safe-top">
         <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(0,255,255,0.5)]">
           ⚡ Zavtrak
         </h1>
-        <button onClick={() => setView(view === 'feed' ? 'upload' : 'feed')} className="bg-black/60 backdrop-blur-md text-cyan-400 px-4 sm:px-5 py-2 rounded-xl font-semibold border border-cyan-500/50 hover:bg-black/80 hover:shadow-[0_0_20px_rgba(0,255,255,0.3)] transition-all touch-button text-xs sm:text-sm">
-          {view === 'feed' ? '← НАЗАД' : 'ЛЕНТА'}
-        </button>
+        <div className="flex items-center gap-2">
+          {user ? (
+            <>
+              {isAdmin && <Shield className="w-5 h-5 text-pink-400 drop-shadow-[0_0_10px_rgba(255,0,128,0.8)]" />}
+              <button 
+                onClick={() => setView(view === 'feed' ? 'upload' : 'feed')}
+                className="bg-black/60 backdrop-blur-md text-cyan-400 px-4 sm:px-5 py-2 rounded-xl font-semibold border border-cyan-500/50 hover:bg-black/80 transition-all touch-button text-xs sm:text-sm"
+              >
+                {view === 'feed' ? <><Plus className="inline w-4 h-4 mr-1" /> Загрузить</> : '← Лента'}
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="bg-black/60 backdrop-blur-md text-purple-400 p-2 rounded-xl border border-purple-500/50 hover:bg-black/80 transition-all touch-button"
+                title="Выйти"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <button 
+              onClick={() => setAuthView('login')}
+              className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-4 sm:px-5 py-2 rounded-xl font-semibold hover:from-cyan-600 hover:to-purple-600 transition-all touch-button text-xs sm:text-sm"
+            >
+              Войти
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Индикатор загрузки */}
       {isLoading && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
           <div className="text-center">
@@ -180,7 +239,21 @@ function App() {
       )}
 
       {view === 'upload' ? (
-        <UploadPage onUploadSuccess={handleUploadSuccess} />
+        user ? (
+          <UploadPage onUploadSuccess={() => { fetchVideos(); setView('feed'); }} user={user} isAdmin={isAdmin} />
+        ) : (
+          <div className="h-screen flex flex-col items-center justify-center text-cyan-400 px-4">
+            <Shield className="w-20 h-20 mb-4 text-pink-400" />
+            <p className="text-xl font-bold text-white mb-2">Требуется вход</p>
+            <p className="text-sm text-purple-400 mb-4 text-center">Войдите, чтобы загружать видео</p>
+            <button 
+              onClick={() => setAuthView('login')}
+              className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-cyan-600 hover:to-purple-600 transition-all"
+            >
+              Войти в аккаунт
+            </button>
+          </div>
+        )
       ) : (
         <div className="h-full w-full overflow-y-scroll snap-y hide-scrollbar" onScroll={handleScroll} style={{ scrollBehavior: 'smooth' }}>
           {videos.length === 0 && !isLoading && (
@@ -189,23 +262,26 @@ function App() {
                 <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
               </div>
               <p className="text-xl sm:text-2xl font-bold text-white mb-2 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)] text-center">НЕТ ВИДЕО</p>
-              <p className="text-sm text-purple-400 text-center">Будь первым кто загрузит в Zavtrak!</p>
+              <p className="text-sm text-purple-400 text-center">
+                {user ? 'Будь первым кто загрузит в Zavtrak!' : 'Войдите, чтобы начать'}
+              </p>
             </div>
           )}
           {videos.slice(0, visibleVideos).map((video, index) => (
-            <VideoCard key={video.id} video={video} isActive={index === activeVideoIndex} />
+            <VideoCard key={video.id} video={video} isActive={index === activeVideoIndex} user={user} isAdmin={isAdmin} />
           ))}
         </div>
       )}
 
-      {/* Плавающая кнопка загрузки */}
-      {view === 'feed' && (
-        <button onClick={() => setView('upload')} className="fixed bottom-20 sm:bottom-8 right-6 sm:right-8 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-[0_0_50px_rgba(0,255,255,0.6)] hover:scale-110 active:scale-95 transition-all transform border-4 border-cyan-400/50 group animate-pulse touch-button safe-bottom">
+      {view === 'feed' && user && (
+        <button 
+          onClick={() => setView('upload')}
+          className="fixed bottom-20 sm:bottom-8 right-6 sm:right-8 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-[0_0_50px_rgba(0,255,255,0.6)] hover:scale-110 active:scale-95 transition-all transform border-4 border-cyan-400/50 group animate-pulse touch-button safe-bottom"
+        >
           <Plus className="w-7 h-7 sm:w-8 sm:h-8 text-white group-hover:rotate-90 transition-transform drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
         </button>
       )}
 
-      {/* Нижняя навигация */}
       {view === 'feed' && (
         <div className="absolute bottom-0 left-0 w-full z-40 flex justify-around items-center p-3 sm:p-4 bg-gradient-to-t from-black/90 to-transparent backdrop-blur-sm border-t border-cyan-500/20 safe-bottom">
           <button className="flex flex-col items-center text-cyan-400 touch-button">
@@ -227,11 +303,16 @@ function App() {
             </div>
             <span className="text-[10px] sm:text-xs mt-1 drop-shadow-[0_0_5px_rgba(255,0,128,0.8)]">ВХОДЯЩИЕ</span>
           </button>
-          <button className="flex flex-col items-center text-cyan-400 hover:text-cyan-300 transition-colors touch-button">
+          <button 
+            onClick={() => user ? handleLogout() : setAuthView('login')}
+            className="flex flex-col items-center text-cyan-400 hover:text-cyan-300 transition-colors touch-button"
+          >
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-black/60 flex items-center justify-center border border-cyan-500/30">
-              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+              {user ? <LogOut className="w-4 h-4 sm:w-5 sm:h-5" /> : <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />}
             </div>
-            <span className="text-[10px] sm:text-xs mt-1 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">ПРОФИЛЬ</span>
+            <span className="text-[10px] sm:text-xs mt-1 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">
+              {user ? 'ВЫХОД' : 'ПРОФИЛЬ'}
+            </span>
           </button>
         </div>
       )}

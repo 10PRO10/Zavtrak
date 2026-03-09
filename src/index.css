@@ -7,7 +7,6 @@
 html, body, #root {
   height: 100%;
   width: 100%;
-  overflow: hidden;
   background-color: #000;
 }
 
@@ -19,8 +18,18 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  overscroll-behavior: none;
+  touch-action: pan-y pan-x;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  html, body, #root {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
 }
 
 .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -29,10 +38,18 @@ body {
 .snap-y {
   scroll-snap-type: y mandatory;
   overflow-y: scroll;
-  height: 100%;
+  height: 100vh;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 100px;
+}
+
+@media (max-width: 768px) {
+  .snap-y-mobile {
+    scroll-snap-type: none;
+    overflow-y: auto;
+    height: auto;
+    min-height: 100vh;
+  }
 }
 
 .snap-center { scroll-snap-align: start; }
@@ -46,6 +63,12 @@ body {
 @keyframes pulse { 50% { opacity: 0.5; } }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 
+@keyframes bounce {
+  0%, 100% { transform: translateY(-25%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+  50% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+}
+.animate-bounce { animation: bounce 1s infinite; }
+
 .bg-clip-text { -webkit-background-clip: text; background-clip: text; }
 .backdrop-blur-sm { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
 .backdrop-blur-md { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
@@ -58,17 +81,40 @@ body {
 }
 
 .drop-shadow { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)); }
+.drop-shadow-lg { filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.7)); }
 
-* { -webkit-user-select: none; user-select: none; }
-input, textarea { -webkit-user-select: text; user-select: text; }
+* { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+input, textarea { -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text; }
+
+html { scroll-behavior: smooth; }
 
 @media (max-width: 768px) {
   .touch-button { min-height: 44px; min-width: 44px; }
+  
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea {
+    touch-action: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .upload-container {
+    padding-bottom: 100px;
+  }
+  
+  .upload-page {
+    min-height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
-* { touch-action: manipulation; }
+* { touch-action: pan-y pan-x; }
 .fixed { contain: none; }
 
-/* 🔴 Оптимизация для производительности */
-.will-change-transform { will-change: transform; }
-.contain-strict { contain: strict; }
+.scrollable {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}

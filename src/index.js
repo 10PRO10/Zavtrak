@@ -1,7 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 import './index.css';
 import App from './App';
 
@@ -11,10 +9,8 @@ if (container) {
   root.render(
     <React.StrictMode>
       <App />
-      {/* 🔴 Vercel Analytics */}
-      <Analytics />
-      {/* 🔴 Vercel Speed Insights */}
-      <SpeedInsights />
     </React.StrictMode>
   );
+} else {
+  console.error("❌ ОШИБКА: Не найдено элемента с id='root'");
 }

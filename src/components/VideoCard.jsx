@@ -1,115 +1,92 @@
-import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Zap, Trash2, Volume1 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Zap, Trash2 } from 'lucide-react';
 
-const VideoCard = memo(({ video, isActive, user, isAdmin }) => {
+const VideoCard = ({ video, isActive, user, isAdmin }) => {
   const videoRef = useRef(null);
   const [likeCount, setLikeCount] = useState(video.likes || 0);
   const [hasLiked, setHasLiked] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
-  const [volume, setVolume] = useState(0.5);
   const [showHeart, setShowHeart] = useState(false);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
-  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 
-  // Автоплей с Intersection Observer для оптимизации
   useEffect(() => {
     if (isActive && videoRef.current) {
-      videoRef.current.muted = true;
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(e => console.log("Autoplay blocked:", e));
       setIsPlaying(true);
     } else if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
       setIsPlaying(false);
     }
-    
     const likedVideos = JSON.parse(localStorage.getItem('likedVideos') || '[]');
-    setHasLiked(likedVideos.includes(video.id));
+    if (likedVideos.includes(video.id)) setHasLiked(true);
   }, [isActive, video.id]);
 
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.volume = volume;
-    }
-  }, [volume]);
-
-  const handleLike = useCallback(async () => {
+  const handleLike = async () => {
     if (hasLiked || !user) return;
-    
     setShowHeart(true);
     setTimeout(() => setShowHeart(false), 1000);
-    
     const newLikeCount = likeCount + 1;
     setLikeCount(newLikeCount);
     setHasLiked(true);
-    
     const likedVideos = JSON.parse(localStorage.getItem('likedVideos') || '[]');
     likedVideos.push(video.id);
     localStorage.setItem('likedVideos', JSON.stringify(likedVideos));
     
     const { error } = await supabase.from('videos').update({ likes: newLikeCount }).eq('id', video.id);
     if (error) {
+      console.error("❌ Ошибка лайка:", error);
       setLikeCount(likeCount);
       setHasLiked(false);
       likedVideos.pop();
       localStorage.setItem('likedVideos', JSON.stringify(likedVideos));
     }
-  }, [hasLiked, user, likeCount, video.id]);
+  };
 
-  const togglePlay = useCallback(() => {
+  const togglePlay = () => {
     if (videoRef.current) {
       videoRef.current[isPlaying ? 'pause' : 'play']();
       setIsPlaying(!isPlaying);
     }
-  }, [isPlaying]);
+  };
 
-  const toggleMute = useCallback(() => {
+  const toggleMute = () => {
     if (videoRef.current) {
-      const newMuted = !isMuted;
-      videoRef.current.muted = newMuted;
-      setIsMuted(newMuted);
-      if (!newMuted && volume === 0) {
-        setVolume(0.5);
-        videoRef.current.volume = 0.5;
-      }
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
     }
-  }, [isMuted, volume]);
+  };
 
-  const handleVolumeChange = useCallback((e) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    if (videoRef.current) {
-      videoRef.current.volume = newVolume;
-      videoRef.current.muted = newVolume === 0;
-      setIsMuted(newVolume === 0);
-    }
-  }, []);
-
-  const handleDelete = useCallback(async () => {
+  const handleDelete = async () => {
     if (!window.confirm('Удалить это видео?')) return;
     try {
       const videoPath = video.video_url.split('/').pop();
-      if (videoPath) await supabase.storage.from('videos').remove([videoPath]);
-      await supabase.from('videos').delete().eq('id', video.id);
+      if (videoPath) {
+        await supabase.storage.from('videos').remove([videoPath]);
+      }
+      const { error } = await supabase.from('videos').delete().eq('id', video.id);
+      if (error) throw error;
       alert('✅ Видео удалено');
       window.location.reload();
     } catch (err) {
-      alert('❌ Не удалось удалить видео');
+      console.error('❌ Ошибка удаления:', err);
+      alert('❌ Не удалось удалить видео: ' + err.message);
     }
-  }, [video.video_url, video.id]);
+  };
 
-  const getUsername = useCallback(() => {
+  const getUsername = () => {
     try {
       if (video.profiles?.username) return video.profiles.username;
       if (video.created_by_email) return video.created_by_email.split('@')[0];
       if (video.id) return `user_${String(video.id).slice(0, 6)}`;
       return 'anon_user';
-    } catch {
+    } catch (e) {
+      console.warn('⚠️ Ошибка получения username:', e);
       return 'anon_user';
     }
-  }, [video.profiles, video.created_by_email, video.id]);
+  };
 
   return (
     <div className="snap-center h-screen w-full relative bg-black flex items-center justify-center overflow-hidden">
@@ -119,17 +96,7 @@ const VideoCard = memo(({ video, isActive, user, isAdmin }) => {
       <div className="relative w-full max-w-md h-[70vh] sm:h-[75vh] rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,255,255,0.3)] border border-cyan-500/30 mx-4 sm:mx-0">
         {!isVideoLoaded && <div className="absolute inset-0 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-pulse" />}
         
-        <video
-          ref={videoRef}
-          src={video.video_url}
-          className="h-full w-full object-cover"
-          loop
-          playsInline
-          muted={isMuted}
-          onClick={togglePlay}
-          onLoadedData={() => setIsVideoLoaded(true)}
-          preload="metadata"
-        />
+        <video ref={videoRef} src={video.video_url} className="h-full w-full object-cover" loop playsInline muted={isMuted} onClick={togglePlay} onLoadedData={() => setIsVideoLoaded(true)} preload="metadata" />
 
         <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.3)_50%)] bg-[size:100%_4px] pointer-events-none opacity-20" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 pointer-events-none" />
@@ -150,14 +117,6 @@ const VideoCard = memo(({ video, isActive, user, isAdmin }) => {
           </div>
         )}
 
-        {isMuted && isPlaying && (
-          <div className="absolute top-3 sm:top-4 left-3 sm:left-4 z-30 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full border border-cyan-500/30">
-            <span className="text-cyan-400 text-xs font-semibold flex items-center gap-1">
-              <VolumeX className="w-3 h-3" /> БЕЗ ЗВУКА
-            </span>
-          </div>
-        )}
-
         <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 z-20">
           <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 flex items-center justify-center border-2 border-cyan-400/50 shadow-[0_0_20px_rgba(0,255,255,0.5)]">
@@ -174,30 +133,16 @@ const VideoCard = memo(({ video, isActive, user, isAdmin }) => {
           </div>
         </div>
 
-        <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-30 flex items-center gap-2">
-          <div className={`transition-all duration-300 ${showVolumeSlider ? 'opacity-100 w-24' : 'opacity-0 w-0 overflow-hidden'}`}>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={volume}
-              onChange={handleVolumeChange}
-              className="w-full h-1 bg-cyan-500/30 rounded-full appearance-none cursor-pointer accent-cyan-400"
-              style={{ background: `linear-gradient(to right, #00ffff ${volume * 100}%, rgba(0,255,255,0.3) ${volume * 100}%)` }}
-            />
-          </div>
-          <button onClick={toggleMute} onMouseEnter={() => setShowVolumeSlider(true)} onMouseLeave={() => setShowVolumeSlider(false)} className="p-2 sm:p-3 rounded-full bg-black/60 backdrop-blur-sm hover:bg-black/80 transition-all border border-cyan-500/30 shadow-[0_0_15px_rgba(0,255,255,0.3)] touch-button">
-            {isMuted || volume === 0 ? <VolumeX className="text-cyan-400 w-4 h-4 sm:w-5 sm:h-5" /> : volume < 0.5 ? <Volume1 className="text-cyan-400 w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="text-cyan-400 w-4 h-4 sm:w-5 sm:h-5" />}
-          </button>
-        </div>
+        <button onClick={toggleMute} className="absolute top-3 sm:top-4 right-3 sm:right-4 z-30 p-2 sm:p-3 rounded-full bg-black/60 backdrop-blur-sm hover:bg-black/80 transition-all border border-cyan-500/30 shadow-[0_0_15px_rgba(0,255,255,0.3)] touch-button">
+          {isMuted ? <VolumeX className="text-cyan-400 w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="text-cyan-400 w-4 h-4 sm:w-5 sm:h-5" />}
+        </button>
       </div>
 
-      <div className="absolute bottom-28 sm:bottom-28 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-3 sm:gap-6 px-4">
+      <div className="absolute bottom-16 sm:bottom-20 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-3 sm:gap-6 px-4">
         <button onClick={handleLike} className={`group relative p-3 sm:p-4 rounded-xl transition-all duration-300 transform touch-button ${hasLiked ? 'bg-gradient-to-r from-pink-600 to-purple-600 scale-110 shadow-[0_0_30px_rgba(255,0,128,0.6)] border border-pink-400' : 'bg-black/80 backdrop-blur-md hover:bg-black/90 hover:scale-110 border border-cyan-500/50 shadow-[0_0_20px_rgba(0,255,255,0.3)]' } active:scale-95`} type="button" disabled={hasLiked || !user}>
           <div className="relative">
             <Heart className={`w-6 h-6 sm:w-8 sm:h-8 transition-all duration-300 ${hasLiked ? 'text-pink-400 fill-pink-400 drop-shadow-[0_0_15px_rgba(255,0,128,0.8)]' : 'text-cyan-400 group-hover:text-pink-400'}`} />
-            {hasLiked && <div className="absolute inset-0 animate-ping"><Heart className="w-6 h-6 sm:w-8 sm:h-8 text-pink-400 fill-pink-400 opacity-50" /></div>}
+            {hasLiked && (<div className="absolute inset-0 animate-ping"><Heart className="w-6 h-6 sm:w-8 sm:h-8 text-pink-400 fill-pink-400 opacity-50" /></div>)}
           </div>
           <span className="text-cyan-400 text-xs mt-1 block text-center font-bold drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">{likeCount}</span>
         </button>
@@ -218,6 +163,6 @@ const VideoCard = memo(({ video, isActive, user, isAdmin }) => {
       </div>
     </div>
   );
-});
+};
 
 export default VideoCard;

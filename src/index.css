@@ -43,16 +43,10 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 768px) {
-  .snap-y-mobile {
-    scroll-snap-type: none;
-    overflow-y: auto;
-    height: auto;
-    min-height: 100vh;
-  }
+.snap-center { 
+  scroll-snap-align: start;
+  padding-bottom: 120px;
 }
-
-.snap-center { scroll-snap-align: start; }
 
 @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .animate-spin-slow { animation: spin-slow 3s linear infinite; }
@@ -100,13 +94,37 @@ html { scroll-behavior: smooth; }
   }
   
   .upload-container {
-    padding-bottom: 100px;
+    padding-bottom: 150px;
+    padding-top: 80px;
+    min-height: 100vh;
   }
   
   .upload-page {
-    min-height: 100vh;
+    display: block;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    min-height: 100vh;
+    padding-bottom: 20px;
+  }
+}
+
+@media (min-width: 769px) {
+  .upload-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    min-height: 100vh;
+  }
+  
+  .upload-container {
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+    padding-bottom: 20px;
+  }
+  
+  .snap-center {
+    padding-bottom: 0;
   }
 }
 

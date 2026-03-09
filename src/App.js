@@ -29,7 +29,6 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
       
       const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
-      // 🔴 ИСПРАВЛЕНО: правильная деструктуризация
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('videos')
         .upload(fileName, file, { cacheControl: '3600', upsert: false });
@@ -42,7 +41,6 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
       console.log('✅ ФАЙЛ ЗАГРУЖЕН:', uploadData);
       setUploadProgress(50);
 
-      // 🔴 ИСПРАВЛЕНО: правильная деструктуризация
       const { data: { publicUrl } } = supabase.storage
         .from('videos')
         .getPublicUrl(fileName);
@@ -61,7 +59,6 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
         videoData.user_id = user.id;
       }
 
-      // 🔴 ИСПРАВЛЕНО: правильная деструктуризация
       const { data: dbData, error: dbError } = await supabase
         .from('videos')
         .insert([videoData])
@@ -86,11 +83,12 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
   }, [file, description, user, onUploadSuccess]);
 
   return (
-    <div className="upload-page scrollable min-h-screen w-full bg-black text-white relative safe-top safe-bottom overflow-y-auto">
+    <div className="upload-page min-h-screen w-full bg-black text-white relative safe-top safe-bottom overflow-y-auto">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
       <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/30 via-purple-900/20 to-pink-900/30" />
 
-      <div className="upload-container w-full max-w-lg relative z-10 px-4 py-20 sm:py-6 flex flex-col items-center justify-start min-h-screen">
+      {/* 🔴 ИСПРАВЛЕНО: pb-32 для отступа снизу */}
+      <div className="upload-container w-full max-w-lg relative z-10 px-4 py-8 sm:py-6 flex flex-col items-center">
         <div className="text-center mb-6 sm:mb-8 w-full">
           <div className="inline-block p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 mb-4 shadow-[0_0_50px_rgba(0,255,255,0.5)] border border-cyan-400/50">
             <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
@@ -128,7 +126,7 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
 
         <textarea 
           placeholder="Опишите ваше видео..." 
-          className="w-full bg-black/60 backdrop-blur-sm border border-cyan-500/30 rounded-2xl p-4 mb-4 text-white placeholder-purple-400/50 focus:outline-none focus:border-cyan-400 focus:bg-black/80 transition-all resize-y shadow-[0_0_15px_rgba(0,255,255,0.2)] text-sm sm:text-base scrollable" 
+          className="w-full bg-black/60 backdrop-blur-sm border border-cyan-500/30 rounded-2xl p-4 mb-4 text-white placeholder-purple-400/50 focus:outline-none focus:border-cyan-400 focus:bg-black/80 transition-all resize-y shadow-[0_0_15px_rgba(0,255,255,0.2)] text-sm sm:text-base" 
           rows="4" 
           onChange={(e) => setDescription(e.target.value)} 
           value={description} 
@@ -146,7 +144,8 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
           </div>
         )}
 
-        <button onClick={handleUpload} disabled={loading || !file} className="w-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 px-6 sm:px-8 py-3 sm:py-4 rounded-2xl font-bold text-white hover:from-cyan-600 hover:via-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(0,255,255,0.5)] border border-cyan-400/50 flex items-center justify-center gap-2 touch-button text-sm sm:text-base mb-20">
+        {/* 🔴 ИСПРАВЛЕНО: mb-8 вместо mb-20 */}
+        <button onClick={handleUpload} disabled={loading || !file} className="w-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 px-6 sm:px-8 py-3 sm:py-4 rounded-2xl font-bold text-white hover:from-cyan-600 hover:via-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(0,255,255,0.5)] border border-cyan-400/50 flex items-center justify-center gap-2 touch-button text-sm sm:text-base mb-8">
           {loading ? (<><div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />Загрузка...</>) : (<><Zap className="w-4 h-4 sm:w-5 sm:h-5" />🚀 ОПУБЛИКОВАТЬ</>)}
         </button>
       </div>
@@ -167,7 +166,6 @@ function App() {
   useEffect(() => {
     const checkSession = async () => {
       console.log('🔍 Проверка сессии...');
-      // 🔴 ИСПРАВЛЕНО: правильная деструктуризация
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user) {
@@ -185,7 +183,6 @@ function App() {
     
     checkSession();
 
-    // 🔴 ИСПРАВЛЕНО: правильная деструктуризация
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('🔄 Изменение авторизации:', event);
       if (session?.user) {
@@ -204,7 +201,6 @@ function App() {
     console.log('📥 ЗАГРУЗКА ВИДЕО...');
     setIsLoading(true);
     try {
-      // 🔴 ИСПРАВЛЕНО: правильная деструктуризация
       const { data, error } = await supabase
         .from('videos')
         .select('*')
@@ -332,7 +328,7 @@ function App() {
       {view === 'feed' && user && (
         <button 
           onClick={() => setView('upload')}
-          className="fixed bottom-[80px] sm:bottom-8 right-6 sm:right-8 z-[99] w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-[0_0_50px_rgba(0,255,255,0.6)] hover:scale-110 active:scale-95 transition-all transform border-4 border-cyan-400/50 group animate-pulse touch-button"
+          className="fixed bottom-[100px] sm:bottom-8 right-6 sm:right-8 z-[99] w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-[0_0_50px_rgba(0,255,255,0.6)] hover:scale-110 active:scale-95 transition-all transform border-4 border-cyan-400/50 group animate-pulse touch-button"
         >
           <Plus className="w-7 h-7 sm:w-8 sm:h-8 text-white group-hover:rotate-90 transition-transform drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
         </button>

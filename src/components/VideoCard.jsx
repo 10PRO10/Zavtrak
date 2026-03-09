@@ -138,7 +138,8 @@ const VideoCard = ({ video, isActive, user, isAdmin }) => {
         </button>
       </div>
 
-      <div className="absolute bottom-16 sm:bottom-20 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-3 sm:gap-6 px-4">
+      {/* 🔴 ИСПРАВЛЕНО: bottom-20 на мобильных (было bottom-16) */}
+      <div className="absolute bottom-20 sm:bottom-24 md:bottom-20 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-3 sm:gap-6 px-4">
         <button onClick={handleLike} className={`group relative p-3 sm:p-4 rounded-xl transition-all duration-300 transform touch-button ${hasLiked ? 'bg-gradient-to-r from-pink-600 to-purple-600 scale-110 shadow-[0_0_30px_rgba(255,0,128,0.6)] border border-pink-400' : 'bg-black/80 backdrop-blur-md hover:bg-black/90 hover:scale-110 border border-cyan-500/50 shadow-[0_0_20px_rgba(0,255,255,0.3)]' } active:scale-95`} type="button" disabled={hasLiked || !user}>
           <div className="relative">
             <Heart className={`w-6 h-6 sm:w-8 sm:h-8 transition-all duration-300 ${hasLiked ? 'text-pink-400 fill-pink-400 drop-shadow-[0_0_15px_rgba(255,0,128,0.8)]' : 'text-cyan-400 group-hover:text-pink-400'}`} />

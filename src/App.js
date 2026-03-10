@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { supabase } from './supabaseClient';
-import { Upload, Play, Heart, MessageCircle, Share2, Plus, Zap, LogOut, Shield } from 'lucide-react';
+import { Upload as UploadIcon, Play, Heart, MessageCircle, Share2, Plus, Zap, LogOut, Shield, Menu } from 'lucide-react';
 import VideoCard from './components/VideoCard';
 import Auth from './components/Auth';
+import SideNav from './components/SideNav';
 
 const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
   const [file, setFile] = useState(null);
@@ -87,21 +88,21 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
       <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
       <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/30 via-purple-900/20 to-pink-900/30" />
 
-      <div className="upload-container w-full max-w-lg relative z-10 px-4 py-8 sm:py-6 flex flex-col items-center pb-32">
+      <div className="upload-container w-full max-w-lg relative z-10 px-4 py-8 flex flex-col items-center pb-32">
         <div className="text-center mb-6 sm:mb-8 w-full">
           <div className="inline-block p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 mb-4 shadow-[0_0_50px_rgba(0,255,255,0.5)] border border-cyan-400/50">
-            <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
+            <UploadIcon className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
           </div>
           <h1 className="text-2xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(0,255,255,0.5)]">
             ЗАГРУЗИТЬ ВИДЕО
           </h1>
           <p className="text-cyan-400/80 text-sm sm:text-base">
-            {user?.email?.includes('promir12345678910') && '👑 АДМИН: '}
+            {isAdmin && '👑 АДМИН: '}
             Поделись моментом в Zavtrak
           </p>
           {user && (
             <p className="text-purple-400/60 text-xs mt-2">
-              Аккаунт: @{user.user_metadata?.username || 'user'} {isAdmin && <Shield className="inline w-3 h-3 text-pink-400" />}
+              Аккаунт: @{user.username || user.email?.split('@')[0]} {isAdmin && <Shield className="inline w-3 h-3 text-pink-400" />}
             </p>
           )}
         </div>
@@ -160,6 +161,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authView, setAuthView] = useState(null);
+  const [sideNavOpen, setSideNavOpen] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -170,14 +172,26 @@ function App() {
         console.log('✅ Пользователь авторизован:', session.user.email);
         setUser(session.user);
         
-        // 🔴 ПРОВЕРКА АДМИНА ПО ЛОГИНУ
-        const username = session.user.user_metadata?.username || '';
-        if (username === 'promir12345678910' || session.user.email?.includes('promir12345678910')) {
+        // Проверяем админа по username
+        const username = session.user.user_metadata?.username || session.user.email?.split('@')[0];
+        if (username === 'promir12345678910') {
           console.log('👑 АДМИН обнаружен!');
+          setIsAdmin(true);
+        }
+        
+        // Загружаем профиль
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile?.is_admin) {
           setIsAdmin(true);
         }
       } else {
         console.log('❌ Пользователь не авторизован');
+        setAuthView('login');
       }
       setIsLoading(false);
     };
@@ -188,11 +202,12 @@ function App() {
       console.log('🔄 Изменение авторизации:', event);
       if (session?.user) {
         setUser(session.user);
-        const username = session.user.user_metadata?.username || '';
-        setIsAdmin(username === 'promir12345678910' || session.user.email?.includes('promir12345678910'));
+        const username = session.user.user_metadata?.username || session.user.email?.split('@')[0];
+        setIsAdmin(username === 'promir12345678910');
       } else {
         setUser(null);
         setIsAdmin(false);
+        setAuthView('login');
       }
     });
 
@@ -255,118 +270,87 @@ function App() {
 
   return (
     <div className="h-screen w-full overflow-hidden bg-black relative safe-top safe-bottom">
-      {/* 🔴 ВЕРХНЯЯ ПАНЕЛЬ (упрощённая) */}
-      <div className="fixed top-0 left-0 right-0 z-[100] flex justify-between items-center p-3 sm:p-4 bg-gradient-to-b from-black/90 via-black/80 to-transparent backdrop-blur-md border-b border-cyan-500/20 safe-top" style={{ paddingRight: '90px' }}>
-        <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(0,255,255,0.5)]">
-          ⚡ Zavtrak
-        </h1>
-        <div className="flex items-center gap-2">
-          {user ? (
-            <>
-              {isAdmin && <Shield className="w-5 h-5 text-pink-400 drop-shadow-[0_0_10px_rgba(255,0,128,0.8)]" />}
-              <button 
-                onClick={() => setView(view === 'feed' ? 'upload' : 'feed')}
-                className="bg-black/60 backdrop-blur-md text-cyan-400 px-4 sm:px-5 py-2 rounded-xl font-semibold border border-cyan-500/50 hover:bg-black/80 transition-all touch-button text-xs sm:text-sm flex items-center gap-1"
-              >
-                {view === 'feed' ? <><Plus className="inline w-4 h-4" /> Загрузить</> : '← Лента'}
-              </button>
-            </>
-          ) : (
-            <button 
-              onClick={() => setAuthView('login')}
-              className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-4 sm:px-5 py-2 rounded-xl font-semibold hover:from-cyan-600 hover:to-purple-600 transition-all touch-button text-xs sm:text-sm"
-            >
-              Войти
-            </button>
-          )}
-        </div>
-      </div>
+      {/* 🔴 БОКОВАЯ НАВИГАЦИЯ */}
+      <SideNav 
+        user={user}
+        isAdmin={isAdmin}
+        view={view}
+        setView={setView}
+        onLogout={handleLogout}
+        isOpen={sideNavOpen}
+        setIsOpen={setSideNavOpen}
+      />
 
-      {isLoading && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 backdrop-blur-sm">
-          <div className="text-center">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4 shadow-[0_0_30px_rgba(0,255,255,0.5)]" />
-            <p className="text-cyan-400 text-base sm:text-lg font-semibold drop-shadow-[0_0_10px_rgba(0,255,255,0.8)]">ЗАГРУЗКА ДАННЫХ...</p>
-          </div>
-        </div>
-      )}
-
-      {view === 'upload' ? (
-        user ? (
-          <UploadPage onUploadSuccess={() => { console.log('✅ Загрузка завершена'); fetchVideos(); setView('feed'); }} user={user} isAdmin={isAdmin} />
-        ) : (
-          <div className="h-screen flex flex-col items-center justify-center text-cyan-400 px-4 scrollable">
-            <Shield className="w-20 h-20 mb-4 text-pink-400" />
-            <p className="text-xl font-bold text-white mb-2">Требуется вход</p>
-            <p className="text-sm text-purple-400 mb-4 text-center">Войдите, чтобы загружать видео</p>
-            <button onClick={() => setAuthView('login')} className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-cyan-600 hover:to-purple-600 transition-all">
-              Войти в аккаунт
-            </button>
-          </div>
-        )
-      ) : (
-        <div className="h-full w-full overflow-y-scroll snap-y hide-scrollbar" onScroll={handleScroll} style={{ scrollBehavior: 'smooth', paddingRight: '80px' }}>
-          {videos.length === 0 && !isLoading && (
-            <div className="h-screen flex flex-col items-center justify-center text-cyan-400 px-4">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(0,255,255,0.5)] border border-cyan-400/50">
-                <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
-              </div>
-              <p className="text-xl sm:text-2xl font-bold text-white mb-2 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)] text-center">НЕТ ВИДЕО</p>
-              <p className="text-sm text-purple-400 text-center">{user ? 'Будь первым кто загрузит в Zavtrak!' : 'Войдите, чтобы начать'}</p>
+      {/* 🔴 ОСНОВНОЙ КОНТЕНТ (сдвинут вправо на десктопе) */}
+      <div className="md:ml-64 h-full">
+        {isLoading && (
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 backdrop-blur-sm">
+            <div className="text-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4 shadow-[0_0_30px_rgba(0,255,255,0.5)]" />
+              <p className="text-cyan-400 text-base sm:text-lg font-semibold drop-shadow-[0_0_10px_rgba(0,255,255,0.8)]">ЗАГРУЗКА ДАННЫХ...</p>
             </div>
-          )}
-          {videos.slice(0, visibleVideos).map((video, index) => (
-            <VideoCard key={video.id} video={video} isActive={index === activeVideoIndex} user={user} isAdmin={isAdmin} />
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {view === 'feed' && user && (
-        <button 
-          onClick={() => setView('upload')}
-          className="fixed bottom-[100px] right-[90px] z-[99] w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-[0_0_50px_rgba(0,255,255,0.6)] hover:scale-110 active:scale-95 transition-all transform border-4 border-cyan-400/50 group animate-pulse touch-button"
-        >
-          <Plus className="w-7 h-7 sm:w-8 sm:h-8 text-white group-hover:rotate-90 transition-transform drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
-        </button>
-      )}
+        {view === 'upload' ? (
+          user ? (
+            <UploadPage onUploadSuccess={() => { console.log('✅ Загрузка завершена'); fetchVideos(); setView('feed'); }} user={user} isAdmin={isAdmin} />
+          ) : (
+            <div className="h-screen flex flex-col items-center justify-center text-cyan-400 px-4 scrollable">
+              <Shield className="w-20 h-20 mb-4 text-pink-400" />
+              <p className="text-xl font-bold text-white mb-2">Требуется вход</p>
+              <p className="text-sm text-purple-400 mb-4 text-center">Войдите, чтобы загружать видео</p>
+              <button onClick={() => setAuthView('login')} className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-cyan-600 hover:to-purple-600 transition-all">
+                Войти в аккаунт
+              </button>
+            </div>
+          )
+        ) : (
+          <div className="h-full w-full overflow-y-scroll snap-y hide-scrollbar" onScroll={handleScroll} style={{ scrollBehavior: 'smooth' }}>
+            {videos.length === 0 && !isLoading && (
+              <div className="h-screen flex flex-col items-center justify-center text-cyan-400 px-4">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(0,255,255,0.5)] border border-cyan-400/50">
+                  <UploadIcon className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
+                </div>
+                <p className="text-xl sm:text-2xl font-bold text-white mb-2 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)] text-center">НЕТ ВИДЕО</p>
+                <p className="text-sm text-purple-400 text-center">{user ? 'Будь первым кто загрузит в Zavtrak!' : 'Войдите, чтобы начать'}</p>
+              </div>
+            )}
+            {videos.slice(0, visibleVideos).map((video, index) => (
+              <VideoCard key={video.id} video={video} isActive={index === activeVideoIndex} user={user} isAdmin={isAdmin} />
+            ))}
+          </div>
+        )}
 
-      {/* 🔴 ПРАВАЯ НАВИГАЦИОННАЯ ПАНЕЛЬ */}
-      <div className="right-nav">
+        {/* 🔴 НИЖНЯЯ НАВИГАЦИЯ (только для мобильной версии) */}
         {view === 'feed' && (
-          <>
-            <button className="flex flex-col items-center text-cyan-400 touch-button group">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,255,0.4)] group-hover:scale-110 transition-transform">
-                <Play className="w-5 h-5 sm:w-6 sm:h-6" />
+          <div className="fixed bottom-0 left-0 right-0 md:hidden z-[100] flex justify-around items-center p-2 bg-gradient-to-t from-black/95 via-black/90 to-transparent backdrop-blur-md border-t border-cyan-500/30 safe-bottom">
+            <button onClick={() => setView('feed')} className="flex flex-col items-center text-cyan-400 touch-button min-w-[60px]">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,255,0.4)]">
+                <Play className="w-5 h-5" />
               </div>
-              <span className="text-[9px] sm:text-[10px] mt-1 font-semibold drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">ГЛАВНАЯ</span>
+              <span className="text-[10px] mt-1 font-semibold drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">ГЛАВНАЯ</span>
             </button>
-            
-            <button className="flex flex-col items-center text-purple-400 hover:text-purple-300 transition-colors touch-button group">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-black/60 flex items-center justify-center border border-purple-500/30 group-hover:scale-110 transition-transform">
-                <Share2 className="w-5 h-5 sm:w-6 sm:h-6" />
+            <button onClick={() => setView('upload')} className="flex flex-col items-center text-purple-400 hover:text-purple-300 transition-colors touch-button min-w-[60px]">
+              <div className="w-10 h-10 rounded-xl bg-black/60 flex items-center justify-center border border-purple-500/30">
+                <UploadIcon className="w-5 h-5" />
               </div>
-              <span className="text-[9px] sm:text-[10px] mt-1 drop-shadow-[0_0_5px_rgba(168,85,247,0.8)]">ДРУЗЬЯ</span>
+              <span className="text-[10px] mt-1 drop-shadow-[0_0_5px_rgba(168,85,247,0.8)]">ЗАГРУЗИТЬ</span>
             </button>
-            
-            <button className="flex flex-col items-center text-pink-400 hover:text-pink-300 transition-colors touch-button group">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-black/60 flex items-center justify-center border border-pink-500/30 group-hover:scale-110 transition-transform">
-                <Heart className="w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="w-12" />
+            <button className="flex flex-col items-center text-pink-400 hover:text-pink-300 transition-colors touch-button min-w-[60px]">
+              <div className="w-10 h-10 rounded-xl bg-black/60 flex items-center justify-center border border-pink-500/30">
+                <Heart className="w-5 h-5" />
               </div>
-              <span className="text-[9px] sm:text-[10px] mt-1 drop-shadow-[0_0_5px_rgba(255,0,128,0.8)]">ВХОДЯЩИЕ</span>
+              <span className="text-[10px] mt-1 drop-shadow-[0_0_5px_rgba(255,0,128,0.8)]">ЛАЙКИ</span>
             </button>
-            
-            <button 
-              onClick={() => user ? handleLogout() : setAuthView('login')}
-              className="flex flex-col items-center text-cyan-400 hover:text-cyan-300 transition-colors touch-button group"
-            >
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-black/60 flex items-center justify-center border border-cyan-500/30 group-hover:scale-110 transition-transform">
-                {user ? <LogOut className="w-5 h-5 sm:w-6 sm:h-6" /> : <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />}
+            <button onClick={handleLogout} className="flex flex-col items-center text-cyan-400 hover:text-cyan-300 transition-colors touch-button min-w-[60px]">
+              <div className="w-10 h-10 rounded-xl bg-black/60 flex items-center justify-center border border-cyan-500/30">
+                <LogOut className="w-5 h-5" />
               </div>
-              <span className="text-[9px] sm:text-[10px] mt-1 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">
-                {user ? 'ВЫХОД' : 'ПРОФИЛЬ'}
-              </span>
+              <span className="text-[10px] mt-1 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">ВЫХОД</span>
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>

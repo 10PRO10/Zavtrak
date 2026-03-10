@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { LogIn, UserPlus, Lock, Eye, EyeOff, Zap } from 'lucide-react';
+import { LogIn, UserPlus, Shield, Eye, EyeOff, Zap } from 'lucide-react';
 
 export const Auth = ({ onAuthSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -17,26 +17,38 @@ export const Auth = ({ onAuthSuccess }) => {
 
     try {
       if (isLogin) {
-        // 🔴 ВХОД ПО ЛОГИНУ (username + password)
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: `${username}@zavtrak.local`,  // Формируем email из логина
+        // 🔴 ВХОД через username (ищем пользователя по metadata)
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: `${username}@zavtrak.local`, // Формируем email из username
           password,
         });
         
-        if (error) throw error;
-        console.log('✅ Вход успешен:', data.user);
+        if (signInError) throw signInError;
+        console.log('✅ Вход успешен:', signInData.user);
       } else {
-        // 🔴 РЕГИСТРАЦИЯ ПО ЛОГИНУ
-        const { data, error } = await supabase.auth.signUp({
-          email: `${username}@zavtrak.local`,  // Создаём фейковый email
+        // 🔴 РЕГИСТРАЦИЯ через username
+        const fakeEmail = `${username}@zavtrak.local`;
+        
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: fakeEmail,
           password,
           options: {
             data: { username },
           },
         });
         
-        if (error) throw error;
-        console.log('✅ Регистрация успешна:', data.user);
+        if (signUpError) throw signUpError;
+        console.log('✅ Регистрация успешна:', signUpData.user);
+        
+        // Создаём профиль в БД
+        if (signUpData.user) {
+          await supabase.from('profiles').insert([{
+            id: signUpData.user.id,
+            email: fakeEmail,
+            username: username,
+            is_admin: username === 'promir12345678910' // Админ по username
+          }]);
+        }
       }
       onAuthSuccess();
     } catch (err) {
@@ -45,11 +57,6 @@ export const Auth = ({ onAuthSuccess }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    onAuthSuccess();
   };
 
   return (
@@ -75,9 +82,9 @@ export const Auth = ({ onAuthSuccess }) => {
             </div>
           )}
 
-          {/* 🔴 ПОЛЕ ЛОГИН (вместо email) */}
+          {/* 🔴 ПОЛЕ: Username (вместо email) */}
           <div className="mb-4">
-            <label className="block text-cyan-400 text-sm mb-2">Логин</label>
+            <label className="block text-cyan-400 text-sm mb-2">Логин (username)</label>
             <div className="relative">
               <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400" />
               <input 
@@ -85,17 +92,18 @@ export const Auth = ({ onAuthSuccess }) => {
                 value={username} 
                 onChange={(e) => setUsername(e.target.value)} 
                 className="w-full bg-black/40 border border-purple-500/30 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-400/50 focus:outline-none focus:border-cyan-400 transition-all" 
-                placeholder="your_username" 
+                placeholder="cyber_user" 
                 required 
                 autoComplete="username"
               />
             </div>
           </div>
 
+          {/* ПОЛЕ: Пароль */}
           <div className="mb-6">
             <label className="block text-cyan-400 text-sm mb-2">Пароль</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-pink-400" />
+              <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-pink-400" />
               <input 
                 type={showPassword ? 'text' : 'password'} 
                 value={password} 
@@ -139,13 +147,6 @@ export const Auth = ({ onAuthSuccess }) => {
             {isLogin ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
           </button>
         </div>
-
-        <button 
-          onClick={handleLogout} 
-          className="mt-4 w-full py-2 text-purple-400 hover:text-pink-400 transition-colors text-sm border border-purple-500/30 rounded-xl hover:bg-purple-500/10"
-        >
-          Выйти из аккаунта
-        </button>
       </div>
     </div>
   );

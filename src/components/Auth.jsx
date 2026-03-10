@@ -17,17 +17,34 @@ export const Auth = ({ onAuthSuccess }) => {
 
     try {
       if (isLogin) {
-        // 🔴 ВХОД через username (ищем пользователя по metadata)
+        // 🔴 ВХОД
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: `${username}@zavtrak.local`, // Формируем email из username
+          email: `${username}@zavtrak.local`,
           password,
         });
         
-        if (signInError) throw signInError;
+        if (signInError) {
+          if (signInError.message.includes('rate limit')) {
+            throw new Error('⏳ Слишком много попыток. Подождите 5 минут и попробуйте снова.');
+          }
+          throw signInError;
+        }
+        
         console.log('✅ Вход успешен:', signInData.user);
       } else {
-        // 🔴 РЕГИСТРАЦИЯ через username
+        // 🔴 РЕГИСТРАЦИЯ
         const fakeEmail = `${username}@zavtrak.local`;
+        
+        // Проверяем, не существует ли уже пользователь
+        const { data: existingUsers } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('username', username)
+          .single();
+        
+        if (existingUsers) {
+          throw new Error('😕 Этот логин уже занят. Выберите другой.');
+        }
         
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: fakeEmail,
@@ -37,17 +54,30 @@ export const Auth = ({ onAuthSuccess }) => {
           },
         });
         
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          if (signUpError.message.includes('rate limit')) {
+            throw new Error('⏳ Слишком много регистраций. Подождите 5 минут.');
+          }
+          if (signUpError.message.includes('User already registered')) {
+            throw new Error('😕 Пользователь с таким логином уже существует.');
+          }
+          throw signUpError;
+        }
+        
         console.log('✅ Регистрация успешна:', signUpData.user);
         
         // Создаём профиль в БД
         if (signUpData.user) {
-          await supabase.from('profiles').insert([{
+          const { error: profileError } = await supabase.from('profiles').insert([{
             id: signUpData.user.id,
             email: fakeEmail,
             username: username,
-            is_admin: username === 'promir12345678910' // Админ по username
+            is_admin: username === 'promir12345678910'
           }]);
+          
+          if (profileError) {
+            console.error('Ошибка создания профиля:', profileError);
+          }
         }
       }
       onAuthSuccess();
@@ -77,12 +107,12 @@ export const Auth = ({ onAuthSuccess }) => {
 
         <form onSubmit={handleAuth} className="bg-black/60 backdrop-blur-md rounded-3xl p-6 border border-cyan-500/30 shadow-[0_0_30px_rgba(0,255,255,0.2)]">
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-400 text-sm">
-              {error}
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-400 text-sm flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 
-          {/* 🔴 ПОЛЕ: Username (вместо email) */}
           <div className="mb-4">
             <label className="block text-cyan-400 text-sm mb-2">Логин (username)</label>
             <div className="relative">
@@ -95,11 +125,11 @@ export const Auth = ({ onAuthSuccess }) => {
                 placeholder="cyber_user" 
                 required 
                 autoComplete="username"
+                disabled={loading}
               />
             </div>
           </div>
 
-          {/* ПОЛЕ: Пароль */}
           <div className="mb-6">
             <label className="block text-cyan-400 text-sm mb-2">Пароль</label>
             <div className="relative">
@@ -113,11 +143,13 @@ export const Auth = ({ onAuthSuccess }) => {
                 required 
                 minLength={6}
                 autoComplete={isLogin ? "current-password" : "new-password"}
+                disabled={loading}
               />
               <button 
                 type="button" 
                 onClick={() => setShowPassword(!showPassword)} 
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-cyan-400 transition-colors"
+                disabled={loading}
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -127,10 +159,13 @@ export const Auth = ({ onAuthSuccess }) => {
           <button 
             type="submit" 
             disabled={loading} 
-            className="w-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 py-3 rounded-xl font-bold text-white hover:from-cyan-600 hover:via-purple-600 hover:to-pink-600 disabled:opacity-50 transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(0,255,255,0.4)] border border-cyan-400/50 flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 py-3 rounded-xl font-bold text-white hover:from-cyan-600 hover:via-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(0,255,255,0.4)] border border-cyan-400/50 flex items-center justify-center gap-2"
           >
             {loading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Обработка...</span>
+              </>
             ) : isLogin ? (
               <><LogIn className="w-5 h-5" /> Войти</>
             ) : (
@@ -142,11 +177,18 @@ export const Auth = ({ onAuthSuccess }) => {
         <div className="mt-6 text-center">
           <button 
             onClick={() => { setIsLogin(!isLogin); setError(''); }} 
-            className="text-cyan-400 hover:text-pink-400 transition-colors text-sm"
+            className="text-cyan-400 hover:text-pink-400 transition-colors text-sm disabled:opacity-50"
+            disabled={loading}
           >
             {isLogin ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
           </button>
         </div>
+        
+        {error?.includes('rate limit') && (
+          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-400 text-xs text-center">
+            💡 Совет: Очистите кэш браузера (Ctrl + Shift + Del) и подождите несколько минут
+          </div>
+        )}
       </div>
     </div>
   );

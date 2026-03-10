@@ -105,6 +105,10 @@ html { scroll-behavior: smooth; }
     min-height: 100vh;
     padding-bottom: 20px;
   }
+  
+  .snap-center {
+    padding-bottom: 120px;
+  }
 }
 
 @media (min-width: 769px) {

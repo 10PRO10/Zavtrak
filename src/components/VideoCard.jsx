@@ -138,7 +138,7 @@ const VideoCard = ({ video, isActive, user, isAdmin }) => {
         </button>
       </div>
 
-      {/* 🔴 ИСПРАВЛЕНО: bottom-20 на мобильных (было bottom-16) */}
+      {/* 🔴 ИСПРАВЛЕНО: bottom-20 на мобильных, чтобы не перекрывала навигация */}
       <div className="absolute bottom-20 sm:bottom-24 md:bottom-20 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-3 sm:gap-6 px-4">
         <button onClick={handleLike} className={`group relative p-3 sm:p-4 rounded-xl transition-all duration-300 transform touch-button ${hasLiked ? 'bg-gradient-to-r from-pink-600 to-purple-600 scale-110 shadow-[0_0_30px_rgba(255,0,128,0.6)] border border-pink-400' : 'bg-black/80 backdrop-blur-md hover:bg-black/90 hover:scale-110 border border-cyan-500/50 shadow-[0_0_20px_rgba(0,255,255,0.3)]' } active:scale-95`} type="button" disabled={hasLiked || !user}>
           <div className="relative">

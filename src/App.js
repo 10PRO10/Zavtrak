@@ -87,8 +87,8 @@ const UploadPage = memo(({ onUploadSuccess, user, isAdmin }) => {
       <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
       <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/30 via-purple-900/20 to-pink-900/30" />
 
-      {/* 🔴 ИСПРАВЛЕНО: pb-32 для отступа снизу */}
-      <div className="upload-container w-full max-w-lg relative z-10 px-4 py-8 sm:py-6 flex flex-col items-center">
+      {/* 🔴 ИСПРАВЛЕНО: pb-32 чтобы кнопка не скрывалась */}
+      <div className="upload-container w-full max-w-lg relative z-10 px-4 py-8 sm:py-6 flex flex-col items-center pb-32">
         <div className="text-center mb-6 sm:mb-8 w-full">
           <div className="inline-block p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 mb-4 shadow-[0_0_50px_rgba(0,255,255,0.5)] border border-cyan-400/50">
             <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
